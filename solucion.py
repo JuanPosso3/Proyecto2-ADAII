@@ -1,3 +1,4 @@
+from minizinc import Instance, Model, Solver
 def leerArchivo(archivo):
     with open(archivo, 'r') as file:
         lineas = file.readlines()
@@ -37,10 +38,69 @@ def leerArchivo(archivo):
         "num_nuevos_programas": num_nuevos_programas
     }
 
-archivoEntrada = "entrada.txt" 
-datos = leerArchivo(archivoEntrada)
-#print(datos)
+def escribir_data_dzn(datos, archivo_salida):
 
+    with open(archivo_salida, 'w') as file:
+        # Escribir el número de ubicaciones existentes
+        file.write(f"num_existing_locations = {datos['num_ubicaciones_existentes']};\n")
+
+        # Escribir las ubicaciones existentes
+        existing_locations_flat = ", ".join(
+            f"{x}, {y}" for x, y in datos['ubicaciones_existentes']
+        )
+        file.write(
+            f"existing_locations = array2d(0..{datos['num_ubicaciones_existentes'] - 1}, 0..1, [{existing_locations_flat}]);\n"
+        )
+
+        # Escribir el tamaño de la matriz
+        file.write(f"matrix_size = {datos['tamano_matriz']};\n")
+
+        # Escribir la matriz de población
+        tamano = datos['tamano_matriz']
+        population_flat = ", ".join(map(str, sum(datos['matriz_poblacion'], [])))
+        file.write(
+            f"population_matrix = array2d(0..{tamano - 1}, 0..{tamano - 1}, [{population_flat}]);\n"
+        )
+
+        # Escribir la matriz de entorno empresarial
+        business_flat = ", ".join(map(str, sum(datos['matriz_negocios'], [])))
+        file.write(
+            f"business_matrix = array2d(0..{tamano - 1}, 0..{tamano - 1}, [{business_flat}]);\n"
+        )
+
+        # Escribir el número de nuevos programas
+        file.write(f"num_new_programs = {datos['num_nuevos_programas']};\n")
+
+
+datos = leerArchivo("entrada.txt") 
+escribir_data_dzn(datos, "data.dzn")
+
+
+sedes = Model("modeloMinizinc.mzn")
+
+gecode = Solver.lookup("gecode")
+chuffed = Solver.lookup("chuffed")
+cpSat= Solver.lookup("cp-sat")
+
+instance = Instance(gecode,sedes)
+result = instance.solve()
+
+
+def procesar_resultado(result):
+    # Convertir la salida en texto para procesarla
+    output = str(result)
+    lines = output.strip().split("\n")
+    # Extraer la ganancia inicial
+    ganancia_inicial = int(lines[0].split(":")[1].strip())
+    # Extraer las nuevas ubicaciones
+    ubicaciones_nuevas = [
+        tuple(map(int, line.split())) for line in lines[2:-1]
+    ]
+    # Extraer la ganancia total
+    ganancia_total = int(lines[-1].split(":")[1].strip())
+    return ganancia_inicial, ubicaciones_nuevas, ganancia_total
+
+ganancia_inicial, nuevas_ubicaciones, ganancia_total = procesar_resultado(result)
 
 def escribirArchivo(file_path, ganancia_sin_nuevas, ganancia_con_nuevas, ubicaciones_establecidas, nuevas_ubicaciones):
 
@@ -57,12 +117,11 @@ def escribirArchivo(file_path, ganancia_sin_nuevas, ganancia_con_nuevas, ubicaci
         for ubicacion in sorted(nuevas_ubicaciones):
             file.write(f"{ubicacion[0]} {ubicacion[1]}\n")
 
+
 ruta_salida = "salida.txt" 
-ganancia_sin_nuevas = 120
-ganancia_con_nuevas = 240
-ubicaciones_establecidas = [(6, 8), (8, 4), (10, 10)]
-nuevas_ubicaciones = [(2, 3), (5, 5), (12, 1), (13, 15)]
+ganancia_sin_nuevas = ganancia_inicial
+ganancia_con_nuevas = ganancia_total
+ubicaciones_establecidas = datos["ubicaciones_existentes"]
 
 escribirArchivo(ruta_salida, ganancia_sin_nuevas, ganancia_con_nuevas, ubicaciones_establecidas, nuevas_ubicaciones)
-
-
+print("Archivo de salida generado exitosamente.")
