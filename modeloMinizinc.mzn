@@ -15,8 +15,21 @@ array[0..num_new_programs-1, 0..1] of var 0..matrix_size-1: new_locations; % Coo
 
 % Calcular la ganancia inicial usando las ubicaciones existentes
 int: initial_gain = sum([let {
-    set of int: x_range = max(0, existing_locations[i, 0]-1)..min(matrix_size-1, existing_locations[i, 0]+1),
-    set of int: y_range = max(0, existing_locations[i, 1]-1)..min(matrix_size-1, existing_locations[i, 1]+1)
+    set of int: x_range = max(0, existing_locations[i, 1]-1)..min(matrix_size-1, existing_locations[i, 1]+1),
+    set of int: y_range = max(0, existing_locations[i, 0]-1)..min(matrix_size-1, existing_locations[i, 0]+1)
+} in
+    sum([population_matrix[x, y] + business_matrix[x, y] | x in x_range, y in y_range])
+| i in 0..num_existing_locations-1]);
+
+% Calcular la ganancia total considerando las nuevas ubicaciones
+var int: total_gain = sum([let {
+    var set of int: x_range = max(0, new_locations[i, 1]-1)..min(matrix_size-1, new_locations[i, 1]+1),
+    var set of int: y_range = max(0, new_locations[i, 0]-1)..min(matrix_size-1, new_locations[i, 0]+1)
+} in
+    sum([population_matrix[x, y] + business_matrix[x, y] | x in x_range, y in y_range])
+| i in 0..num_new_programs-1]) + sum([let {
+    set of int: x_range = max(0, existing_locations[i, 1]-1)..min(matrix_size-1, existing_locations[i, 1]+1),
+    set of int: y_range = max(0, existing_locations[i, 0]-1)..min(matrix_size-1, existing_locations[i, 0]+1)
 } in
     sum([population_matrix[x, y] + business_matrix[x, y] | x in x_range, y in y_range])
 | i in 0..num_existing_locations-1]);
@@ -33,8 +46,8 @@ constraint
     % 2. Segmento de población no menor que 25
     forall(new_loc in 0..num_new_programs-1) (
         let {
-            var set of int: x_range = max(0, new_locations[new_loc, 0]-1)..min(matrix_size-1, new_locations[new_loc, 0]+1),
-            var set of int: y_range = max(0, new_locations[new_loc, 1]-1)..min(matrix_size-1, new_locations[new_loc, 1]+1)
+            var set of int: x_range = max(0, new_locations[new_loc, 1]-1)..min(matrix_size-1, new_locations[new_loc, 1]+1),
+            var set of int: y_range = max(0, new_locations[new_loc, 0]-1)..min(matrix_size-1, new_locations[new_loc, 0]+1)
         } in
             sum([population_matrix[i, j] | i in x_range, j in y_range]) >= 25
     );
@@ -43,8 +56,8 @@ constraint
     % 3. Entorno empresarial no menor que 20
     forall(new_loc in 0..num_new_programs-1) (
         let {
-            var set of int: x_range = max(0, new_locations[new_loc, 0]-1)..min(matrix_size-1, new_locations[new_loc, 0]+1),
-            var set of int: y_range = max(0, new_locations[new_loc, 1]-1)..min(matrix_size-1, new_locations[new_loc, 1]+1)
+            var set of int: x_range = max(0, new_locations[new_loc, 1]-1)..min(matrix_size-1, new_locations[new_loc, 1]+1),
+            var set of int: y_range = max(0, new_locations[new_loc, 0]-1)..min(matrix_size-1, new_locations[new_loc, 0]+1)
         } in
             sum([business_matrix[i, j] | i in x_range, j in y_range]) >= 20
     );
@@ -63,24 +76,12 @@ constraint
         new_locations[i, 0] != new_locations[j, 0] \/ new_locations[i, 1] != new_locations[j, 1]
     );
 
-% Función objetivo: Maximizar la suma del segmento de población y entorno empresarial
-solve maximize
-    sum([let {
-            var set of int: x_range = max(0, new_locations[i, 0]-1)..min(matrix_size-1, new_locations[i, 0]+1),
-            var set of int: y_range = max(0, new_locations[i, 1]-1)..min(matrix_size-1, new_locations[i, 1]+1)
-        } in
-            sum([population_matrix[x, y] + business_matrix[x, y] | x in x_range, y in y_range])
-        | i in 0..num_new_programs-1]);
+% Función objetivo: Maximizar la ganancia total
+solve maximize total_gain;
 
 % Salida
 output [
     "Ganancia inicial: ", show(initial_gain),
     "\nUbicaciones nuevas:\n" ++ join("\n", [show(new_locations[i, 0]) ++ " " ++ show(new_locations[i, 1]) | i in 0..num_new_programs-1]),
-    "\nGanancia total: ",
-    show(sum([let {
-            var set of int: x_range = max(0, new_locations[i, 0]-1)..min(matrix_size-1, new_locations[i, 0]+1),
-            var set of int: y_range = max(0, new_locations[i, 1]-1)..min(matrix_size-1, new_locations[i, 1]+1)
-       } in
-            sum([population_matrix[x, y] + business_matrix[x, y] | x in x_range, y in y_range])
-        | i in 0..num_new_programs-1]))
+    "\nGanancia total: ", show(total_gain)
 ];

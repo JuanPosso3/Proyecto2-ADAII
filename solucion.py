@@ -1,4 +1,8 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
 from minizinc import Instance, Model, Solver
+
+# Funciones de procesamiento existentes
 def leerArchivo(archivo):
     with open(archivo, 'r') as file:
         lineas = file.readlines()
@@ -39,7 +43,6 @@ def leerArchivo(archivo):
     }
 
 def escribir_data_dzn(datos, archivo_salida):
-
     with open(archivo_salida, 'w') as file:
         # Escribir el número de ubicaciones existentes
         file.write(f"num_existing_locations = {datos['num_ubicaciones_existentes']};\n")
@@ -71,23 +74,7 @@ def escribir_data_dzn(datos, archivo_salida):
         # Escribir el número de nuevos programas
         file.write(f"num_new_programs = {datos['num_nuevos_programas']};\n")
 
-
-datos = leerArchivo("entrada.txt") 
-escribir_data_dzn(datos, "data.dzn")
-
-
-sedes = Model("modeloMinizinc.mzn")
-
-gecode = Solver.lookup("gecode")
-chuffed = Solver.lookup("chuffed")
-cpSat= Solver.lookup("cp-sat")
-
-instance = Instance(gecode,sedes)
-result = instance.solve()
-
-
 def procesar_resultado(result):
-    # Convertir la salida en texto para procesarla
     output = str(result)
     lines = output.strip().split("\n")
     # Extraer la ganancia inicial
@@ -100,10 +87,7 @@ def procesar_resultado(result):
     ganancia_total = int(lines[-1].split(":")[1].strip())
     return ganancia_inicial, ubicaciones_nuevas, ganancia_total
 
-ganancia_inicial, nuevas_ubicaciones, ganancia_total = procesar_resultado(result)
-
 def escribirArchivo(file_path, ganancia_sin_nuevas, ganancia_con_nuevas, ubicaciones_establecidas, nuevas_ubicaciones):
-
     with open(file_path, 'w') as file:
         # Escribir las ganancias
         file.write(f"{ganancia_sin_nuevas}\n")
@@ -118,10 +102,80 @@ def escribirArchivo(file_path, ganancia_sin_nuevas, ganancia_con_nuevas, ubicaci
             file.write(f"{ubicacion[0]} {ubicacion[1]}\n")
 
 
-ruta_salida = "salida.txt" 
-ganancia_sin_nuevas = ganancia_inicial
-ganancia_con_nuevas = ganancia_total
-ubicaciones_establecidas = datos["ubicaciones_existentes"]
+# Variables globales
+ruta_archivo_entrada = None
+valor_selector = "gecode"
 
-escribirArchivo(ruta_salida, ganancia_sin_nuevas, ganancia_con_nuevas, ubicaciones_establecidas, nuevas_ubicaciones)
-print("Archivo de salida generado exitosamente.")
+# Funciones de la interfaz
+def cargar_archivo():
+    global ruta_archivo_entrada
+    ruta_archivo_entrada = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
+    if ruta_archivo_entrada:
+        messagebox.showinfo("Archivo cargado", f"Archivo seleccionado: {ruta_archivo_entrada}")
+    else:
+        messagebox.showwarning("Advertencia", "No se seleccionó ningún archivo.")
+
+def cambiar_selector(valor):
+    global valor_selector
+    valor_selector = valor
+    messagebox.showinfo("Selector cambiado", f"Solver seleccionado: {valor}")
+
+def ejecutar_proceso():
+    if not ruta_archivo_entrada:
+        messagebox.showwarning("Advertencia", "Primero debes cargar un archivo de entrada.")
+        return
+
+    try:
+        # Leer los datos
+        datos = leerArchivo(ruta_archivo_entrada)
+
+        # Crear el archivo .dzn
+        archivo_dzn = "data.dzn"
+        escribir_data_dzn(datos, archivo_dzn)
+
+        # Configurar el modelo de MiniZinc
+        modelo = Model("modeloMinizinc.mzn")
+        solver = Solver.lookup(valor_selector)
+        instancia = Instance(solver, modelo)
+
+        # Resolver el modelo
+        resultado = instancia.solve()
+
+        # Procesar el resultado
+        ganancia_inicial, nuevas_ubicaciones, ganancia_total = procesar_resultado(resultado)
+
+        # Generar el archivo de salida
+        archivo_salida = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Archivos de texto", "*.txt")])
+        if archivo_salida:
+            escribirArchivo(archivo_salida, ganancia_inicial, ganancia_total, datos["ubicaciones_existentes"], nuevas_ubicaciones)
+            messagebox.showinfo("Éxito", f"Resultados guardados en: {archivo_salida}")
+        else:
+            messagebox.showwarning("Advertencia", "No se guardó ningún archivo de salida.")
+    except Exception as e:
+        messagebox.showerror("Error", f"Ocurrió un error: {str(e)}")
+
+# Interfaz gráfica
+def main():
+    root = tk.Tk()
+    root.title("Interfaz MiniZinc")
+
+    # Botón para cargar archivo
+    btn_cargar = tk.Button(root, text="Cargar archivo de entrada", command=cargar_archivo)
+    btn_cargar.pack(pady=10)
+
+    # Menú desplegable para seleccionar el solver
+    tk.Label(root, text="Selecciona un solver:").pack()
+    opciones = ["gecode", "chuffed", "cp-sat"]
+    selector_solver = tk.StringVar(value="gecode")
+    menu_selector = tk.OptionMenu(root, selector_solver, *opciones, command=cambiar_selector)
+    menu_selector.pack(pady=10)
+
+    # Botón para ejecutar el proceso
+    btn_ejecutar = tk.Button(root, text="Ejecutar modelo", command=ejecutar_proceso)
+    btn_ejecutar.pack(pady=10)
+
+    # Ejecutar la interfaz
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
