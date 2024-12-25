@@ -1,5 +1,7 @@
 include "data.dzn";
 
+%Juan Miguel Posso -2259610
+%Jhon Alejandro Martinez -2259565
 % Modelo en MiniZinc para ubicar nuevos programas de ingeniería de sistemas
 
 % Parámetros de entrada

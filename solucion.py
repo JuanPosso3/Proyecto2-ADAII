@@ -1,3 +1,7 @@
+"""
+Juan Miguel Posso -2259610
+Jhon Alejandro Martinez -2259565
+"""
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from minizinc import Instance, Model, Solver
