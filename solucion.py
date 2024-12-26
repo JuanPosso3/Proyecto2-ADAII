@@ -158,27 +158,21 @@ def ejecutar_proceso():
     except Exception as e:
         messagebox.showerror("Error", f"Ocurrió un error: {str(e)}")
 
-# Interfaz gráfica
 def main():
     root = tk.Tk()
     root.title("Interfaz MiniZinc")
-
-    # Botón para cargar archivo
     btn_cargar = tk.Button(root, text="Cargar archivo de entrada", command=cargar_archivo)
     btn_cargar.pack(pady=10)
 
-    # Menú desplegable para seleccionar el solver
     tk.Label(root, text="Selecciona un solver:").pack()
     opciones = ["gecode", "chuffed", "cp-sat"]
     selector_solver = tk.StringVar(value="gecode")
     menu_selector = tk.OptionMenu(root, selector_solver, *opciones, command=cambiar_selector)
     menu_selector.pack(pady=10)
 
-    # Botón para ejecutar el proceso
     btn_ejecutar = tk.Button(root, text="Ejecutar modelo", command=ejecutar_proceso)
     btn_ejecutar.pack(pady=10)
 
-    # Ejecutar la interfaz
     root.mainloop()
 
 if __name__ == "__main__":
